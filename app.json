@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "kisanRaw",
+    "slug": "kisanraw",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#004625"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7776cd28-ac22-456f-9de3-26d99b3a7c49"
+      }
+    }
+  }
+}
