@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, StyleSheet, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { farmer as C } from '../../theme/colors';
-import { verifyResult as R, booking } from '../../data/mock';
 import { Card, Chip, PulseDot, useToast } from '../../components/ui';
 import { useLang } from '../../i18n';
+import { api } from '../../services/api';
+import { getActiveBooking } from '../../services/bookingService';
 
 export default function VerifyScreen() {
   const toast = useToast();
@@ -12,22 +13,47 @@ export default function VerifyScreen() {
   const [scannedId, setScannedId] = useState('');
   const [verified, setVerified] = useState(false);
   const [checkin, setCheckin] = useState(false);
+  const [R, setResult] = useState(null);
 
-  // Centre's QR scanner gun types the decoded ID + Enter into this field (keyboard-wedge input).
-  // submit on Enter, or via the Verify button.
-  const verify = (id) => {
+  const verify = async (id) => {
     const code = (id ?? scannedId).trim();
     if (!code) {
       toast('Scan the farmer QR or type the Booking ID first', t('scanGate'));
       return;
     }
-    setVerified(true);
-    toast(`${code} ✓`, t('scanned'));
+    try {
+      const data = await api('/api/operator/verify', { method: 'POST', body: { code } });
+      setResult(data.result);
+      setVerified(true);
+      toast(`${code} ✓`, t('scanned'));
+    } catch {
+      setVerified(false);
+      toast('Token not found in system', t('scanGate'));
+    }
   };
 
-  const simulateGateScan = () => {
-    setScannedId(booking.id);
-    verify(booking.id);
+  const simulateGateScan = async () => {
+    try {
+      const active = await getActiveBooking();
+      const code = active?.bookingId;
+      if (!code) {
+        toast('No active booking to simulate', t('scanGate'));
+        return;
+      }
+      setScannedId(code);
+      await verify(code);
+    } catch {
+      toast('Could not load an active booking', t('scanGate'));
+    }
+  };
+
+  const admit = async () => {
+    try {
+      await api('/api/operator/check-in', { method: 'POST', body: { code: scannedId } });
+      setCheckin(true);
+    } catch (err) {
+      toast(err.payload?.error === 'already_checked_in' ? 'Already checked in' : 'Check-in failed', t('scanGate'));
+    }
   };
 
   return (
@@ -89,7 +115,7 @@ export default function VerifyScreen() {
         </Card>
 
         {/* verified slip */}
-        {verified && (
+        {verified && R && (
           <Card style={{ borderRadius: 14, overflow: 'hidden' }}>
             <View style={{ backgroundColor: C.primary, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <MaterialCommunityIcons name="check-circle" size={26} color={C.primaryFixed} />
@@ -158,7 +184,7 @@ export default function VerifyScreen() {
 
               {/* actions */}
               <TouchableOpacity
-                onPress={() => setCheckin(true)}
+                onPress={admit}
                 style={{ backgroundColor: C.primary, borderRadius: 12, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56 }}
               >
                 <MaterialCommunityIcons name="checkbox-marked" size={19} color="#fff" />
@@ -210,7 +236,7 @@ export default function VerifyScreen() {
               </View>
             </View>
             <TouchableOpacity
-              onPress={() => { setCheckin(false); setVerified(false); setScannedId(''); }}
+              onPress={() => { setCheckin(false); setVerified(false); setScannedId(''); setResult(null); }}
               style={{ backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16 }}
             >
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{t('nextFarmer')}</Text>

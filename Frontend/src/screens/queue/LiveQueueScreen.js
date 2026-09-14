@@ -18,11 +18,11 @@ export default function LiveQueueScreen({ navigation, route }) {
   const refresh = useCallback(async () => {
     if (!active || online === false) return;
     setLoading(true);
-    const s = await getQueueStatus(active.token);
+    const s = await getQueueStatus(active.token, active.centreId);
     setStatus(s);
     setLastUpdated(new Date());
     setLoading(false);
-  }, [active?.token, online]);
+  }, [active?.token, active?.centreId, online]);
 
   useEffect(() => {
     refresh();

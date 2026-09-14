@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const KEYS = {
   onboarding: 'kr_onboarding_done',
   session: 'kr_session',
+  token: 'kr_token',
   profile: 'kr_profile',
   bookings: 'kr_bookings',
   notifications: 'kr_notifications',

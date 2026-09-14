@@ -1,11 +1,12 @@
 // Central app state: session, profile, bookings, notifications, connectivity.
-// Screens never touch AsyncStorage directly — they call services and dispatch
-// refreshed data here, so swapping mock services for a real API changes nothing.
+// Screens call services and dispatch refreshed data here.
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { loadJSON, saveJSON, KEYS } from '../utils/storage';
 import * as authService from '../services/authService';
 import * as bookingService from '../services/bookingService';
+import * as profileService from '../services/profileService';
+import * as notificationService from '../services/notificationService';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -33,28 +34,28 @@ function reducer(state, action) {
   }
 }
 
-const SEED_NOTIFICATIONS = [
-  { id: 'n1', category: 'queue', text: 'Your slot is confirmed for tomorrow at 10 AM.', at: 'Today, 08:32 AM', read: false },
-  { id: 'n2', category: 'payment', text: 'Your payment of ₹84,045 for Paddy 38.5 Q has been completed.', at: '2 Sep, 4:15 PM', read: false },
-  { id: 'n3', category: 'announcement', text: 'Phagwara Centre will remain open till 6 PM during Rabi peak.', at: '1 Sep, 10:00 AM', read: true },
-];
-
 export function AppStoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Boot: restore everything persisted, subscribe to connectivity.
   useEffect(() => {
     (async () => {
-      const [session, profile, bookings, notifications, onboardingDone] = await Promise.all([
-        authService.getSession(),
-        loadJSON(KEYS.profile, null),
-        bookingService.seedHistory(),
-        loadJSON(KEYS.notifications, null),
-        loadJSON(KEYS.onboarding, false),
-      ]);
-      let notifs = notifications;
-      if (!notifs) { notifs = SEED_NOTIFICATIONS; saveJSON(KEYS.notifications, notifs); }
-      dispatch({ type: 'BOOT', payload: { session, profile, bookings, notifications: notifs, onboardingDone } });
+      const onboardingDone = await loadJSON(KEYS.onboarding, false);
+      let session = null;
+      let profile = null;
+      let bookings = [];
+      let notifications = [];
+      try {
+        session = await authService.getSession();
+        if (session) {
+          profile = await profileService.getFarmerProfile();
+          if (profile && !(profile.name && profile.village)) profile = null;
+          bookings = await bookingService.getBookings();
+          notifications = await notificationService.getNotifications();
+        }
+      } catch {
+        session = null;
+      }
+      dispatch({ type: 'BOOT', payload: { session, profile, bookings, notifications, onboardingDone } });
     })();
 
     const unsub = NetInfo.addEventListener((net) => {
@@ -75,18 +76,29 @@ export function AppStoreProvider({ children }) {
       dispatch({ type: 'SET_BOOKINGS', payload: bookings });
     },
     pushNotification: async (n) => {
-      const notifications = [{ id: `n${Date.now()}`, read: false, ...n }, ...state.notifications];
-      await saveJSON(KEYS.notifications, notifications);
-      dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      try {
+        const notifications = await notificationService.addNotification(n);
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      } catch {
+        const notifications = [{ id: `n${Date.now()}`, read: false, ...n }, ...state.notifications];
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      }
     },
     markAllRead: async () => {
-      const notifications = state.notifications.map((n) => ({ ...n, read: true }));
-      await saveJSON(KEYS.notifications, notifications);
-      dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      try {
+        const notifications = await notificationService.markNotificationsRead();
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      } catch {
+        const notifications = state.notifications.map((n) => ({ ...n, read: true }));
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+      }
     },
     logout: async () => {
       await authService.logout();
       dispatch({ type: 'SET_SESSION', payload: null });
+      dispatch({ type: 'SET_PROFILE', payload: null });
+      dispatch({ type: 'SET_BOOKINGS', payload: [] });
+      dispatch({ type: 'SET_NOTIFICATIONS', payload: [] });
     },
   };
 

@@ -9,7 +9,7 @@ import { Button } from '../../components/ui';
 
 export default function OtpScreen({ navigation, route }) {
   const { t } = useLang();
-  const { setSession } = useStore();
+  const { setSession, setProfile } = useStore();
   const mobile = route.params?.mobile || '';
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -35,6 +35,7 @@ export default function OtpScreen({ navigation, route }) {
       setOtp('');
       return;
     }
+    if (res.profile) setProfile(res.profile);
     setSession(res.session);
     // Root navigator routes to Registration (no profile) or Home (profile exists).
   };
