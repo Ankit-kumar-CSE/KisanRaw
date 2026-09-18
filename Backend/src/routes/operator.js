@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 import { mapBooking, mapProfile } from '../lib/mappers.js';
 import { STAGES } from '../lib/tokens.js';
 

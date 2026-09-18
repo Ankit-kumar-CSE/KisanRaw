@@ -10,7 +10,7 @@ import { useStore } from '../../store/AppStore';
 
 export default function CentreListScreen({ navigation }) {
   const { t } = useLang();
-  const { online } = useStore();
+  const { online, userLocation, locationGranted } = useStore();
   const [view, setView] = useState('list');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -56,9 +56,11 @@ export default function CentreListScreen({ navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <MaterialCommunityIcons name="map-search" size={20} color={C.primary} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: C.onSurface, flex: 1 }}>{t('centresTitle')}</Text>
-          <View style={styles.gpsChip}>
-            <MaterialCommunityIcons name="crosshairs-gps" size={13} color={C.primary} />
-            <Text style={{ fontSize: 11, fontWeight: '700' }}>±12m</Text>
+          <View style={[styles.gpsChip, !locationGranted && { backgroundColor: '#FFDAD6' }]}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={13} color={locationGranted ? C.primary : '#93000A'} />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: locationGranted ? C.onSurface : '#93000A' }}>
+              {locationGranted ? '±12m' : 'No GPS'}
+            </Text>
           </View>
         </View>
         {!online && (
@@ -84,7 +86,7 @@ export default function CentreListScreen({ navigation }) {
         <EmptyState icon="wifi-off" title={t('unableLoad')} actionLabel={t('retry')} onAction={load} />
       ) : view === 'map' ? (
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 110 }}>
-          <MockMap centres={filtered} selectedId={selected?.id} onSelect={setSelected} />
+          <MockMap centres={filtered} userLocation={userLocation} selectedId={selected?.id} onSelect={setSelected} />
           {selected && (
             <Card style={{ borderRadius: 18, padding: 14, gap: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

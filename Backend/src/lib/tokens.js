@@ -1,35 +1,33 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 
+// Full booking lifecycle, in the order a booking advances.
+export const STAGES = [
+  'confirmed',
+  'checked-in',
+  'in-queue',
+  'processing',
+  'procurement-completed',
+  'payment-initiated',
+  'payment-completed',
+];
 
-// Function to check the token
-const jwtAuthMiddleware = (req, res, next) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            return res.status(401).json({ error: "Authorization header missing" }); // ✅
-        }
-
-        const token = authHeader.split(" ")[1];
-        if (!token) {
-            return res.status(401).json({ error: "Token not found" });
-        }
-        // Verify the jwt token
-        const decode = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // Attach user information to the request object
-        req.user = decode;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: "Invalid token" });
-    }
+export function signAccessToken(payload) {
+  return jwt.sign(payload, env.jwtSecret, { expiresIn: '30d' });
 }
 
+export function verifyAccessToken(token) {
+  return jwt.verify(token, env.jwtSecret);
+}
 
-// Function to Generate token 
-const generateToken = (userData) => {
-    return jwt.sign({ username: userData }, process.env.JWT_SECRET,{expiresIn: '10d'}); // ✅ wrap in object
-};
-
-export { generateToken, jwtAuthMiddleware }; // Export the functions
+// Human-friendly booking id, e.g. KS-20260918-A241-X8K4
+export function bookingIdFor(dateISO, tokenNum) {
+  const compact = String(dateISO).replace(/-/g, '');
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let rand = '';
+  while (rand.length < 4) {
+    rand += alphabet[crypto.randomBytes(1)[0] % alphabet.length];
+  }
+  return `KS-${compact}-A${String(tokenNum).padStart(3, '0')}-${rand}`;
+}

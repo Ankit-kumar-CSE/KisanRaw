@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = Router();
 router.use(requireAuth);
 
 function buildQueueWindow(myNum, cursor) {
-  const start = myNum - 9;
+  const start = Math.max(1, myNum - 9);
   const tokens = Array.from({ length: 12 }, (_, i) => `A-${start + i}`);
   const queue = tokens.map((t) => {
     const n = parseInt(t.slice(2), 10);
@@ -47,7 +47,7 @@ router.get('/', asyncHandler(async (req, res) => {
     .eq('centre_id', booking.centre_id)
     .maybeSingle();
 
-  let cursor = qRow?.current_token_num ?? Math.max(myNum - 7, 0);
+  let cursor = qRow?.current_token_num ?? Math.max(myNum - 7, 1);
   if (cursor > myNum) cursor = myNum;
   if (!qRow) {
     await supabase.from('centre_queues').insert({ centre_id: booking.centre_id, current_token_num: cursor });

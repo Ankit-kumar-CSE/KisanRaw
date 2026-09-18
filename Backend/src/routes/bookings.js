@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 import { mapBooking } from '../lib/mappers.js';
 import { bookingIdFor, STAGES } from '../lib/tokens.js';
 import { ensureSlots } from '../lib/slots.js';
@@ -49,7 +49,14 @@ router.get('/:bookingId', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  if (!isComplete(req.user)) throw new HttpError(400, 'profile_incomplete');
+  const { data: profile, error: pErr } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', req.user.id)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  if (!profile || !isComplete(profile)) throw new HttpError(400, 'profile_incomplete');
+
   const { centreId, crop, quantity, dateISO, slotId, slotLabel } = req.body || {};
   const qty = Number(quantity);
   if (!centreId || !crop || !dateISO || !slotId) throw new HttpError(400, 'missing_fields');
@@ -98,7 +105,7 @@ router.post('/', asyncHandler(async (req, res) => {
       token,
       token_num: tokenNum,
       profile_id: req.user.id,
-      farmer_name: req.user.name,
+      farmer_name: profile.name,
       centre_id: centre.id,
       centre_name: centre.name,
       centre_address: centre.address,

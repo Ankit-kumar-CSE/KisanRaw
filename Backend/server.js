@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { env } from './src/config/env.js';
+import { usingDemoDb } from './src/config/supabase.js';
 import { errorHandler } from './src/lib/http.js';
 import authRoutes from './src/routes/auth.js';
 import centreRoutes from './src/routes/centres.js';
@@ -32,8 +33,16 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/operator', operatorRoutes);
 
+// Unknown routes → JSON 404 instead of the default HTML error page.
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: 'route_not_found' });
+});
+
 app.use(errorHandler);
 
 app.listen(env.port, () => {
   console.log(`KishanSetu API running on http://localhost:${env.port}`);
+  console.log(usingDemoDb
+    ? '[db] SUPABASE_SERVICE_ROLE_KEY not set — using in-memory demo data'
+    : '[db] Using Supabase');
 });

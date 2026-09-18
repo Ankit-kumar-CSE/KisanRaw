@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 import { bankLabel } from '../lib/mappers.js';
 
 const router = Router();

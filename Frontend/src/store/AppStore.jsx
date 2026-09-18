@@ -1,8 +1,9 @@
-// Central app state: session, profile, bookings, notifications, connectivity.
+// Central app state: session, profile, bookings, notifications, connectivity, location.
 // Screens call services and dispatch refreshed data here.
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { loadJSON, saveJSON, KEYS } from '../utils/storage';
+import { requestAppPermissions, watchLocation } from '../utils/permissions';
 import * as authService from '../services/authService';
 import * as bookingService from '../services/bookingService';
 import * as profileService from '../services/profileService';
@@ -19,6 +20,10 @@ const initialState = {
   bookings: [],
   notifications: [],
   online: true,
+  // permissions
+  locationGranted: false,
+  notifGranted: false,
+  userLocation: null, // { lat, lng } or null
 };
 
 function reducer(state, action) {
@@ -30,6 +35,8 @@ function reducer(state, action) {
     case 'SET_NOTIFICATIONS': return { ...state, notifications: action.payload };
     case 'SET_ONLINE': return { ...state, online: action.payload };
     case 'ONBOARDING_DONE': return { ...state, onboardingDone: true };
+    case 'SET_PERMISSIONS': return { ...state, ...action.payload };
+    case 'SET_LOCATION': return { ...state, userLocation: action.payload };
     default: return state;
   }
 }
@@ -38,7 +45,16 @@ export function AppStoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
+    // ── Boot sequence ──────────────────────────────────────────────────────
     (async () => {
+      // 1. Request permissions first (shows system dialogs)
+      const { locationGranted, notifGranted, location } = await requestAppPermissions();
+      dispatch({
+        type: 'SET_PERMISSIONS',
+        payload: { locationGranted, notifGranted, userLocation: location },
+      });
+
+      // 2. Load persisted state + auth
       const onboardingDone = await loadJSON(KEYS.onboarding, false);
       let session = null;
       let profile = null;
@@ -58,10 +74,20 @@ export function AppStoreProvider({ children }) {
       dispatch({ type: 'BOOT', payload: { session, profile, bookings, notifications, onboardingDone } });
     })();
 
+    // ── Network listener ───────────────────────────────────────────────────
     const unsub = NetInfo.addEventListener((net) => {
       dispatch({ type: 'SET_ONLINE', payload: !!(net.isConnected && net.isInternetReachable !== false) });
     });
-    return unsub;
+
+    // ── Live location watcher ──────────────────────────────────────────────
+    const stopWatch = watchLocation((loc) => {
+      dispatch({ type: 'SET_LOCATION', payload: loc });
+    });
+
+    return () => {
+      unsub();
+      stopWatch();
+    };
   }, []);
 
   const actions = {
