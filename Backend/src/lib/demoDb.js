@@ -11,6 +11,98 @@ const nowISO = () => new Date().toISOString();
 function seedTables() {
   return {
     profiles: [],
+    // ── Admin users (demo mode — bcrypt hash of "Admin@1234" cost 12) ──────────
+    admin_users: [
+      {
+        id: 'admin-national-01',
+        email: 'national@kisanraw.gov.in',
+        // bcrypt hash of "Admin@1234" — verified via bcryptjs
+        password_hash: '$2b$12$Pl3Dt7Dq.X1EYvld.tPREuGLrL79Y0MqE08BeId9tIGEE7qeDdcqe',
+        name: 'Dr. R.K. Swaminathan',
+        role: 'national_admin',
+        centre_id: null,
+        region_id: null,
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'admin-regional-pb-01',
+        email: 'regional.punjab@kisanraw.gov.in',
+        password_hash: '$2b$12$Pl3Dt7Dq.X1EYvld.tPREuGLrL79Y0MqE08BeId9tIGEE7qeDdcqe',
+        name: 'Amritpal Singh Dhaliwal',
+        role: 'regional_admin',
+        centre_id: null,
+        region_id: 'region-pb-doaba',
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'admin-manager-phk-01',
+        email: 'manager.phagwara@kisanraw.gov.in',
+        password_hash: '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMqJqhbe/R.NjIbznBnbRmGShy',
+        name: 'Gurpreet Kaur Sandhu',
+        role: 'centre_manager',
+        centre_id: 'KR-PHK-01',
+        region_id: null,
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'admin-operator-phk-01',
+        email: 'operator.phagwara@kisanraw.gov.in',
+        password_hash: '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMqJqhbe/R.NjIbznBnbRmGShy',
+        name: 'Harjinder Singh',
+        role: 'centre_operator',
+        centre_id: 'KR-PHK-01',
+        region_id: null,
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    ],
+    // ── Regions ────────────────────────────────────────────────────────────────
+    regions: [
+      { id: 'region-pb-doaba', name: 'Punjab — Doaba Zone', code: 'PB-DOABA', state: 'Punjab' },
+      { id: 'region-pb-majha', name: 'Punjab — Majha Zone', code: 'PB-MAJHA', state: 'Punjab' },
+    ],
+    // ── Audit logs ─────────────────────────────────────────────────────────────
+    audit_logs: [],
+    // ── Compensation ───────────────────────────────────────────────────────────
+    compensation_claims: [],
+    compensation_documents: [],
+    compensation_status_history: [],
+    // ── Sustainability ─────────────────────────────────────────────────────────
+    sustainability_goals: [
+      {
+        id: 'goal-01',
+        title: 'Zero Stubble Burning',
+        description: 'Avoid burning crop residue after harvest.',
+        criteria: 'Submit geo-tagged photo proof of field without fire damage after harvest season.',
+        benefit_description: 'Score: 50 pts + MSP bonus ₹100/Q on next procurement',
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'goal-02',
+        title: 'Organic Certification',
+        description: 'Achieve NPOP/PGS-India organic certification for your farm.',
+        criteria: 'Upload valid organic certificate issued within the last 3 years.',
+        benefit_description: 'Score: 100 pts + Premium MSP rate on eligible crops',
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'goal-03',
+        title: 'Drip Irrigation Adoption',
+        description: 'Install and use drip / micro-irrigation in place of flood irrigation.',
+        criteria: 'Submit installation invoice + field photos showing drip system in use.',
+        benefit_description: 'Score: 75 pts + Govt. subsidy link assistance',
+        active: true,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    ],
+    sustainability_submissions: [],
+    sustainability_evidence: [],
+    // ── Existing tables ────────────────────────────────────────────────────────
     centres: [
       {
         id: 'KR-PHK-01',
@@ -28,6 +120,11 @@ function seedTables() {
         recommended: true,
         map_x: 44,
         map_y: 30,
+        region_id: 'region-pb-doaba',
+        state: 'Punjab',
+        district: 'Kapurthala',
+        total_storage_qtl: 18000,
+        used_storage_qtl: 14200,
       },
       {
         id: 'KR-PHK-02',
@@ -41,10 +138,15 @@ function seedTables() {
         hours: '08:00 AM – 05:00 PM',
         bays: 'Bay #1 & #2 Active',
         crops: ['Wheat', 'Paddy', 'Maize'],
-        status: 'busy',
+        status: 'open',
         recommended: false,
         map_x: 64,
         map_y: 52,
+        region_id: 'region-pb-doaba',
+        state: 'Punjab',
+        district: 'Kapurthala',
+        total_storage_qtl: 12000,
+        used_storage_qtl: 7440,
       },
       {
         id: 'KR-PHL-03',
@@ -62,6 +164,11 @@ function seedTables() {
         recommended: false,
         map_x: 24,
         map_y: 68,
+        region_id: 'region-pb-doaba',
+        state: 'Punjab',
+        district: 'Kapurthala',
+        total_storage_qtl: 8000,
+        used_storage_qtl: 7040,
       },
       {
         id: 'KR-MHT-04',
@@ -79,6 +186,11 @@ function seedTables() {
         recommended: false,
         map_x: 74,
         map_y: 20,
+        region_id: 'region-pb-doaba',
+        state: 'Punjab',
+        district: 'Kapurthala',
+        total_storage_qtl: 5000,
+        used_storage_qtl: 0,
       },
     ],
     slot_templates: [
@@ -98,6 +210,7 @@ function seedTables() {
     centre_queues: [],
   };
 }
+
 
 function makeError(message) {
   return { message, status: 500 };
@@ -273,5 +386,23 @@ export function createDemoDb() {
   return {
     __demo: true,
     from: (table) => createQuery(table, { filters: [], orders: [], limit: null }, exec),
+    // rpc: book_slot_atomic — atomically increment booked_count if under capacity
+    rpc: (fnName, params) => {
+      if (fnName === 'book_slot_atomic') {
+        return Promise.resolve().then(() => {
+          const slotDays = db['centre_slot_days'];
+          const entry = slotDays.find(
+            (s) => s.centre_id === params.p_centre_id &&
+                   s.date === params.p_date &&
+                   s.slot_id === params.p_slot_id
+          );
+          if (!entry) return { data: false, error: null };
+          if (entry.booked_count >= entry.capacity) return { data: false, error: null };
+          entry.booked_count = (entry.booked_count || 0) + 1;
+          return { data: true, error: null };
+        });
+      }
+      return Promise.resolve({ data: null, error: makeError(`demo_db: unknown rpc "${fnName}"`) });
+    },
   };
 }

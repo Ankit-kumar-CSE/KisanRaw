@@ -122,12 +122,13 @@ router.post('/', asyncHandler(async (req, res) => {
     .single();
   if (bErr) throw bErr;
 
-  await supabase
-    .from('centre_slot_days')
-    .update({ booked_count: slot.booked_count + 1 })
-    .eq('centre_id', centreId)
-    .eq('date', dateISO)
-    .eq('slot_id', slotId);
+  // Use the atomic PostgreSQL function to increment booked_count.
+  // This prevents overbooking under concurrent load — the UPDATE only succeeds
+  // if booked_count < capacity at the moment of execution (single atomic statement).
+  const { data: slotOk, error: atomicErr } = await supabase
+    .rpc('book_slot_atomic', { p_centre_id: centreId, p_date: dateISO, p_slot_id: slotId });
+  if (atomicErr) throw atomicErr;
+  if (!slotOk) throw new HttpError(409, 'slot_full');
 
   await supabase.from('notifications').insert({
     profile_id: req.user.id,

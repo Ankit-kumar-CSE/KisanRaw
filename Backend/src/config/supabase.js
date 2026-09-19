@@ -1,6 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { WebSocket } from 'ws';
 import { env } from './env.js';
 import { createDemoDb } from '../lib/demoDb.js';
+
+// Polyfill WebSocket for Node.js < 22.
+// @supabase/realtime-js requires a native WebSocket; Node 20 doesn't have one.
+// Providing the `ws` package satisfies the requirement without upgrading Node.
+if (!globalThis.WebSocket) {
+  globalThis.WebSocket = WebSocket;
+}
 
 function isServiceRoleKey(key) {
   // Supabase keys are JWTs whose payload declares their role. Only the
@@ -21,4 +29,7 @@ export const supabase = usingDemoDb
   ? createDemoDb()
   : createClient(env.supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      realtime: {
+        transport: WebSocket,
+      },
     });
