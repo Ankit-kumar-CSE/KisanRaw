@@ -32,6 +32,16 @@ import HelpScreen from '../screens/profile/HelpScreen';
 import VerifyScreen from '../screens/operator/VerifyScreen';
 import ConsoleScreen from '../screens/operator/ConsoleScreen';
 import QueueControlScreen from '../screens/operator/QueueControlScreen';
+import CompensationDashboardScreen from '../screens/compensation/CompensationDashboardScreen';
+import ClaimDetailScreen from '../screens/compensation/ClaimDetailScreen';
+import NewClaimStep1Screen from '../screens/compensation/NewClaimStep1Screen';
+import NewClaimStep2Screen from '../screens/compensation/NewClaimStep2Screen';
+import NewClaimStep3Screen from '../screens/compensation/NewClaimStep3Screen';
+import ClaimSuccessScreen from '../screens/compensation/ClaimSuccessScreen';
+import SustainabilityDashboardScreen from '../screens/sustainability/SustainabilityDashboardScreen';
+import GoalListScreen from '../screens/sustainability/GoalListScreen';
+import GoalDetailScreen from '../screens/sustainability/GoalDetailScreen';
+import SubmissionDetailScreen from '../screens/sustainability/SubmissionDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -142,6 +152,16 @@ export default function RootNavigator() {
       <Stack.Screen name="Verify" component={VerifyScreen} />
       <Stack.Screen name="Console" component={ConsoleScreen} />
       <Stack.Screen name="QueueControl" component={QueueControlScreen} />
+      <Stack.Screen name="CompensationDashboard" component={CompensationDashboardScreen} />
+      <Stack.Screen name="ClaimDetail" component={ClaimDetailScreen} />
+      <Stack.Screen name="NewClaimStep1" component={NewClaimStep1Screen} />
+      <Stack.Screen name="NewClaimStep2" component={NewClaimStep2Screen} />
+      <Stack.Screen name="NewClaimStep3" component={NewClaimStep3Screen} />
+      <Stack.Screen name="ClaimSuccess" component={ClaimSuccessScreen} />
+      <Stack.Screen name="SustainabilityDashboard" component={SustainabilityDashboardScreen} />
+      <Stack.Screen name="GoalList" component={GoalListScreen} />
+      <Stack.Screen name="GoalDetail" component={GoalDetailScreen} />
+      <Stack.Screen name="SubmissionDetail" component={SubmissionDetailScreen} />
     </Stack.Navigator>
   );
 }

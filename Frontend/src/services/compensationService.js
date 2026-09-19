@@ -66,3 +66,16 @@ export async function submitClaim(claimId) {
     body: JSON.stringify({}),
   });
 }
+
+/**
+ * Get a signed Supabase Storage upload URL for a compensation document.
+ * @param {string} claimId
+ * @param {{ fileName: string, fileType: string, fileSizeBytes: number }} params
+ * @returns {Promise<{ signedUrl: string, filePath: string }>}
+ */
+export async function getUploadUrl(claimId, { fileName, fileType, fileSizeBytes }) {
+  return api('/api/compensation/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ claimId, fileName, fileType, fileSizeBytes }),
+  });
+}

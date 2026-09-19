@@ -11,6 +11,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { farmer as C } from '../theme/colors';
 import { PulseDot } from './ui';
 
+// Reads from EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in .env
+const MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
 // Phagwara, Punjab — fallback centre when GPS unavailable
 const DEFAULT_REGION = {
   latitude: 31.2241,
@@ -47,6 +50,17 @@ export default function MapComponent({ centres = [], userLocation = null, select
     ? { latitude: userLocation.lat, longitude: userLocation.lng, latitudeDelta: 0.12, longitudeDelta: 0.08 }
     : DEFAULT_REGION;
 
+  // Show a clear error if the API key is missing (blank map symptom)
+  if (!MAPS_API_KEY) {
+    return (
+      <View style={[styles.container, styles.errorBox]}>
+        <MaterialCommunityIcons name="map-off" size={32} color="#93000A" />
+        <Text style={styles.errorText}>Google Maps API key not set.</Text>
+        <Text style={styles.errorSub}>Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to your .env file and restart the server.</Text>
+      </View>
+    );
+  }
+
   // Animate map to user location when it becomes available
   useEffect(() => {
     if (userLocation && mapRef.current) {
@@ -73,7 +87,7 @@ export default function MapComponent({ centres = [], userLocation = null, select
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={region}
         showsUserLocation={!!userLocation}
         showsMyLocationButton={true}
@@ -212,5 +226,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: C.onSurface,
+  },
+  errorBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFDAD6',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#93000A',
+    textAlign: 'center',
+  },
+  errorSub: {
+    fontSize: 11,
+    color: '#93000A',
+    textAlign: 'center',
+    opacity: 0.8,
   },
 });

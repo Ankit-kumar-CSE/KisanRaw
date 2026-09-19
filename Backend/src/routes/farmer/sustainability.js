@@ -200,4 +200,67 @@ router.post('/submissions/:id/submit', asyncHandler(async (req, res) => {
   res.json({ success: true, submission: updated });
 }));
 
+/**
+ * GET /api/sustainability/submissions/:id
+ * Returns full submission detail including evidence list.
+ * Enforces ownership.
+ */
+router.get('/submissions/:id', asyncHandler(async (req, res) => {
+  ensureFarmer(req);
+
+  const { data: sub, error } = await supabase
+    .from('sustainability_submissions')
+    .select(`
+      *, sustainability_goals (id, title, description, criteria, required_evidence, optional_evidence, benefit_description, score_points, benefit_type)
+    `)
+    .eq('id', req.params.id)
+    .eq('profile_id', req.user.id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!sub) throw new HttpError(404, 'submission_not_found');
+
+  const { data: evidence } = await supabase
+    .from('sustainability_evidence')
+    .select('id, file_name, file_type, file_size_bytes, uploaded_at, verification_status')
+    .eq('submission_id', sub.id)
+    .order('uploaded_at');
+
+  res.json({ success: true, submission: sub, evidence: evidence || [] });
+}));
+
+/**
+ * POST /api/sustainability/upload-url
+ * Generate a signed Supabase Storage upload URL for an evidence file.
+ * Body: { submissionId, fileName, fileType, fileSizeBytes }
+ */
+router.post('/upload-url', asyncHandler(async (req, res) => {
+  ensureFarmer(req);
+
+  const { submissionId, fileName, fileType, fileSizeBytes } = req.body || {};
+  if (!submissionId || !fileName || !fileType || !fileSizeBytes) {
+    throw new HttpError(400, 'missing_upload_fields');
+  }
+
+  // Verify ownership
+  const { data: sub, error: fetchErr } = await supabase
+    .from('sustainability_submissions')
+    .select('id, status')
+    .eq('id', submissionId)
+    .eq('profile_id', req.user.id)
+    .maybeSingle();
+  if (fetchErr) throw fetchErr;
+  if (!sub) throw new HttpError(404, 'submission_not_found');
+  if (['verified', 'rejected', 'expired'].includes(sub.status)) {
+    throw new HttpError(400, 'submission_is_closed');
+  }
+
+  const { validateUploadRequest, createUploadUrl } = await import('../lib/supabaseStorage.js');
+  const { ext } = validateUploadRequest({ fileName, fileType, fileSizeBytes });
+
+  const path = `sustainability/${submissionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { signedUrl } = await createUploadUrl(path);
+
+  res.json({ success: true, signedUrl, filePath: path });
+}));
+
 export default router;

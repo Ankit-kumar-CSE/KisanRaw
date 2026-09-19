@@ -38,12 +38,21 @@ router.get('/claims', asyncHandler(async (req, res) => {
 /**
  * POST /api/compensation/claims
  * Create a new compensation claim (in draft status).
- * Body: { crop, damageType, incidentDate, affectedAreaAcres, estimatedLossQtl, description }
+ * Body: { crop, cropVariety?, sowingDate?, harvestDate?, cultivatedAreaAcres?,
+ *         damageType, otherDamageType?, incidentDate, damagePct?,
+ *         affectedAreaAcres, estimatedLossQtl?, description?,
+ *         village?, district?, state?, lat?, lng?, centreId? }
  */
 router.post('/claims', asyncHandler(async (req, res) => {
   ensureFarmer(req);
 
-  const { crop, damageType, incidentDate, affectedAreaAcres, estimatedLossQtl, description } = req.body || {};
+  const {
+    crop, cropVariety, sowingDate, harvestDate, cultivatedAreaAcres,
+    damageType, otherDamageType, incidentDate, damagePct,
+    affectedAreaAcres, estimatedLossQtl, description,
+    village, district, state, lat, lng, centreId,
+  } = req.body || {};
+
   if (!crop || !damageType || !incidentDate || !affectedAreaAcres) {
     throw new HttpError(400, 'missing_required_fields');
   }
@@ -61,11 +70,23 @@ router.post('/claims', asyncHandler(async (req, res) => {
       claim_number: claimNumber,
       profile_id: req.user.id,
       crop,
+      crop_variety: cropVariety || null,
+      sowing_date: sowingDate || null,
+      harvest_date: harvestDate || null,
+      cultivated_area_acres: cultivatedAreaAcres ? Number(cultivatedAreaAcres) : null,
       damage_type: damageType,
+      other_damage_type: damageType === 'other' ? (otherDamageType || null) : null,
       incident_date: incidentDate,
+      damage_pct: damagePct ? Number(damagePct) : null,
       affected_area_acres: acres,
       estimated_loss_qtl: estimatedLossQtl ? Number(estimatedLossQtl) : null,
       description: description || null,
+      village: village || null,
+      district: district || null,
+      state: state || null,
+      lat: lat ? Number(lat) : null,
+      lng: lng ? Number(lng) : null,
+      centre_id: centreId || null,
       status: 'draft',
     })
     .select('*')
@@ -82,6 +103,42 @@ router.post('/claims', asyncHandler(async (req, res) => {
   });
 
   res.status(201).json({ success: true, claim: data });
+}));
+
+/**
+ * POST /api/compensation/upload-url
+ * Generate a signed Supabase Storage upload URL for a compensation document.
+ * The path is always constructed by the backend — never trusted from client.
+ * Body: { claimId, fileName, fileType, fileSizeBytes }
+ */
+router.post('/upload-url', asyncHandler(async (req, res) => {
+  ensureFarmer(req);
+
+  const { claimId, fileName, fileType, fileSizeBytes } = req.body || {};
+  if (!claimId || !fileName || !fileType || !fileSizeBytes) {
+    throw new HttpError(400, 'missing_upload_fields');
+  }
+
+  // Verify ownership
+  const { data: claim, error: fetchErr } = await supabase
+    .from('compensation_claims')
+    .select('id, status')
+    .eq('id', claimId)
+    .eq('profile_id', req.user.id)
+    .maybeSingle();
+  if (fetchErr) throw fetchErr;
+  if (!claim) throw new HttpError(404, 'claim_not_found');
+  if (['approved', 'rejected', 'paid'].includes(claim.status)) {
+    throw new HttpError(400, 'claim_is_closed');
+  }
+
+  const { validateUploadRequest, createUploadUrl } = await import('../lib/supabaseStorage.js');
+  const { ext } = validateUploadRequest({ fileName, fileType, fileSizeBytes });
+
+  const path = `compensation/${claimId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { signedUrl } = await createUploadUrl(path);
+
+  res.json({ success: true, signedUrl, filePath: path });
 }));
 
 /**

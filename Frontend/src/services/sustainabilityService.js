@@ -59,3 +59,25 @@ export async function submitSubmission(submissionId) {
     body: JSON.stringify({}),
   });
 }
+
+/**
+ * Get full detail of a sustainability submission (with evidence list).
+ * @param {string} submissionId
+ * @returns {Promise<{ submission, evidence: Array }>}
+ */
+export async function getSubmission(submissionId) {
+  return api(`/api/sustainability/submissions/${submissionId}`);
+}
+
+/**
+ * Get a signed Supabase Storage upload URL for a sustainability evidence file.
+ * @param {string} submissionId
+ * @param {{ fileName: string, fileType: string, fileSizeBytes: number }} params
+ * @returns {Promise<{ signedUrl: string, filePath: string }>}
+ */
+export async function getUploadUrl(submissionId, { fileName, fileType, fileSizeBytes }) {
+  return api('/api/sustainability/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ submissionId, fileName, fileType, fileSizeBytes }),
+  });
+}

@@ -40,6 +40,8 @@ export default function ProfileScreen({ navigation }) {
         { icon: 'file-document-outline', label: t('documents'), value: 'Aadhaar · Jamabandi · Bank', onPress: () => {} },
         { icon: 'translate', label: t('language'), custom: 'lang', onPress: null },
         { icon: 'bell-outline', label: t('notifLbl'), value: unread ? `${unread} new` : '', onPress: () => navigation.navigate('Notifications') },
+        { icon: 'shield-check', label: 'Crop Compensation', onPress: () => navigation.navigate('CompensationDashboard') },
+        { icon: 'leaf-circle', label: 'Sustainable Farming', onPress: () => navigation.navigate('SustainabilityDashboard') },
         { icon: 'help-circle-outline', label: t('helpSupport'), onPress: () => navigation.navigate('Help') },
         { icon: 'shield-lock-outline', label: t('privacy'), value: 'v1.0', onPress: () => {} },
       ],

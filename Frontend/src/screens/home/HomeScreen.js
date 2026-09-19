@@ -72,6 +72,8 @@ export default function HomeScreen({ navigation }) {
         <Quick icon="podium" label={t('quickQueue')} bg={C.secondaryFixed} iconFg={C.secondary} onPress={() => navigation.navigate('Queue')} />
         <Quick icon="ticket-confirmation" label={t('quickBookings')} bg={C.tertiaryFixed} iconFg={C.tertiary} onPress={() => navigation.navigate('Bookings')} />
         <Quick icon="help-circle" label={t('quickHelp')} bg={C.surfaceContainerHigh} iconFg={C.primary} onPress={() => navigation.navigate('Help')} />
+        <Quick icon="shield-check" label="Compensation" bg="#FFF3E0" iconFg="#E65100" onPress={() => navigation.navigate('CompensationDashboard')} />
+        <Quick icon="leaf-circle" label="Green Farming" bg="#E8F5E9" iconFg="#2E7D32" onPress={() => navigation.navigate('SustainabilityDashboard')} />
       </View>
 
       {/* procurement progress teaser (if processing) */}

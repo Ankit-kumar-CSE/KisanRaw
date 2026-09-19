@@ -12,25 +12,39 @@ router.use(requireRole('national_admin', 'regional_admin', 'centre_manager'));
 /**
  * GET /api/admin/compensation
  * Paginated compensation claims with filters.
- * Query params: status, profileId, page, limit
+ * Regional admins see only claims from centres in their region.
+ * Query params: status, profileId, crop, damageType, page, limit
  */
 router.get('/', asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const offset = (page - 1) * limit;
 
+  // Build scoped centre filter
+  let centreIds = null;
+  if (req.admin.role === 'regional_admin' && req.admin.regionId) {
+    const { data: regionCentres } = await supabase
+      .from('centres').select('id').eq('region_id', req.admin.regionId);
+    centreIds = (regionCentres || []).map((c) => c.id);
+  } else if (req.admin.role === 'centre_manager' && req.admin.centreId) {
+    centreIds = [req.admin.centreId];
+  }
+
   let query = supabase
     .from('compensation_claims')
     .select(`
       id, claim_number, profile_id, crop, damage_type, incident_date,
-      affected_area_acres, status, approved_amount, created_at, updated_at,
+      affected_area_acres, status, approved_amount, created_at, updated_at, centre_id,
       profiles (name, mobile, district, state)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (centreIds !== null) query = query.in('centre_id', centreIds);
   if (req.query.status) query = query.eq('status', req.query.status);
   if (req.query.profileId) query = query.eq('profile_id', req.query.profileId);
+  if (req.query.crop) query = query.eq('crop', req.query.crop);
+  if (req.query.damageType) query = query.eq('damage_type', req.query.damageType);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -185,6 +199,122 @@ router.post('/:id/approve', asyncHandler(async (req, res) => {
   });
 
   res.json({ success: true, claim: updated });
+}));
+
+/**
+ * POST /api/admin/compensation/:id/request-info
+ * Request additional information from the farmer.
+ * Body: { reason }
+ */
+router.post('/:id/request-info', asyncHandler(async (req, res) => {
+  const reason = String(req.body?.reason || '').trim();
+  if (!reason) throw new HttpError(400, 'reason_required');
+
+  const { data: claim, error: fetchErr } = await supabase
+    .from('compensation_claims')
+    .select('id, status, profile_id, claim_number')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (fetchErr) throw fetchErr;
+  if (!claim) throw new HttpError(404, 'claim_not_found');
+
+  const { data: updated, error: updateErr } = await supabase
+    .from('compensation_claims')
+    .update({ status: 'info_required', admin_notes: reason, reviewed_by: req.admin.id, updated_at: new Date().toISOString() })
+    .eq('id', claim.id)
+    .select('*')
+    .single();
+  if (updateErr) throw updateErr;
+
+  await supabase.from('compensation_status_history').insert({
+    claim_id: claim.id, from_status: claim.status, to_status: 'info_required',
+    changed_by: req.admin.id, notes: reason,
+  });
+
+  await supabase.from('notifications').insert({
+    profile_id: claim.profile_id, category: 'compensation',
+    text: `Additional information is required for your claim ${claim.claim_number}: ${reason}`,
+  });
+
+  logAction({ actorId: req.admin.id, actorRole: req.admin.role, action: 'COMPENSATION_INFO_REQUESTED',
+    entityType: 'compensation_claim', entityId: claim.id, metadata: { reason }, ipAddress: req.ip });
+
+  res.json({ success: true, claim: updated });
+}));
+
+/**
+ * POST /api/admin/compensation/:id/reject
+ * Reject a compensation claim.
+ * Body: { reason }
+ */
+router.post('/:id/reject', asyncHandler(async (req, res) => {
+  const reason = String(req.body?.reason || '').trim();
+  if (!reason) throw new HttpError(400, 'reason_required');
+
+  const { data: claim, error: fetchErr } = await supabase
+    .from('compensation_claims')
+    .select('id, status, profile_id, claim_number')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (fetchErr) throw fetchErr;
+  if (!claim) throw new HttpError(404, 'claim_not_found');
+
+  const { data: updated, error: updateErr } = await supabase
+    .from('compensation_claims')
+    .update({ status: 'rejected', admin_notes: reason, reviewed_by: req.admin.id, updated_at: new Date().toISOString() })
+    .eq('id', claim.id)
+    .select('*')
+    .single();
+  if (updateErr) throw updateErr;
+
+  await supabase.from('compensation_status_history').insert({
+    claim_id: claim.id, from_status: claim.status, to_status: 'rejected',
+    changed_by: req.admin.id, notes: reason,
+  });
+
+  await supabase.from('notifications').insert({
+    profile_id: claim.profile_id, category: 'compensation',
+    text: `Your compensation claim ${claim.claim_number} has been rejected. Reason: ${reason}`,
+  });
+
+  logAction({ actorId: req.admin.id, actorRole: req.admin.role, action: 'COMPENSATION_REJECTED',
+    entityType: 'compensation_claim', entityId: claim.id, metadata: { reason }, ipAddress: req.ip });
+
+  res.json({ success: true, claim: updated });
+}));
+
+/**
+ * GET /api/admin/compensation/analytics
+ * Aggregate KPIs — scoped to the admin's access level.
+ */
+router.get('/analytics', asyncHandler(async (req, res) => {
+  let centreIds = null;
+  if (req.admin.role === 'regional_admin' && req.admin.regionId) {
+    const { data: regionCentres } = await supabase
+      .from('centres').select('id').eq('region_id', req.admin.regionId);
+    centreIds = (regionCentres || []).map((c) => c.id);
+  } else if (req.admin.role === 'centre_manager' && req.admin.centreId) {
+    centreIds = [req.admin.centreId];
+  }
+
+  let query = supabase.from('compensation_claims').select('status, approved_amount');
+  if (centreIds !== null) query = query.in('centre_id', centreIds);
+
+  const { data: claims, error } = await query;
+  if (error) throw error;
+
+  const list = claims || [];
+  const total = list.length;
+  const pending = list.filter((c) => ['submitted', 'document_verification', 'field_verification', 'assessment'].includes(c.status)).length;
+  const infoRequired = list.filter((c) => c.status === 'info_required').length;
+  const approved = list.filter((c) => ['approved', 'partially_approved'].includes(c.status)).length;
+  const rejected = list.filter((c) => c.status === 'rejected').length;
+  const paid = list.filter((c) => c.status === 'paid').length;
+  const totalApprovedAmount = list
+    .filter((c) => c.approved_amount)
+    .reduce((s, c) => s + Number(c.approved_amount), 0);
+
+  res.json({ success: true, analytics: { total, pending, infoRequired, approved, rejected, paid, totalApprovedAmount: Math.round(totalApprovedAmount) } });
 }));
 
 export default router;
